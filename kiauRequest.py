@@ -1,44 +1,130 @@
-import requests
-import re
 from bs4 import BeautifulSoup
-# from PIL import Image
-# from StringIO import StringIO
-#import mysql.connector
-#from sklearn import tree
-#from unidecode import unidecode
-
-# Json To dctr
+from lxml import html
+import requests
 import json
-class Payload(object):
-	def __init__(self, j):
-		self.__dict__ = json.loads(j)
+import time
+import re
 
-# value
+#---------------------InitializeValue--------------------------
 SubjectCorse = 'معماری'
-table = []
-i = 1
-tempHash = hash('start')
-MaxLen = 10
 url = 'http://edu.kiau.ac.ir'
-Mode = 0
 user = '962097617'
 pasw = '440729300'
-
-
+sessionId = captchaCode = ''
+sessionIdHistory = []
 payload = {
-"__EVENTTARGET":"",
-"__EVENTARGUMENT":"",
-"__VIEWSTATE":"/wEPDwULLTE1NjEwNjU3MTcPZBYCAgMPZBYCAgMPZBYOAgEPDxYCHgRUZXh0BTTYr9in2YbYtNqv2KfZhyDYotiy2KfYryDYp9iz2YTYp9mF24wt2YjYp9it2K8g2qnYsdisZGQCAw8PFgIfAAUE2K/ZimRkAgUPDxYCHwAFAjIyZGQCBw8PFgIfAAUM2YrZg9i02YbYqNmHZGQCJQ8PFgIfAAUIMjI6MTQ6MThkZAInDw8WAh8ABQg5OC8xMC8yMmRkAikPDxYCHwAFD0lQOjUuMTE1LjE5Ny4yOWRkZGRNoXbfRzZ6QK1ycx5b+mWK1opFOAdD+GkNkPCYS8PO"
-,"__VIEWSTATEGENERATOR":"C2EE9ABB"
-,"__EVENTVALIDATION":"/wEdAAnxFiP58N/x+G0k2ByFkDtxY3plgk0YBAefRz3MyBlTcHY2+Mc6SrnAqio3oCKbxYagRg8D1wl3DJW96NwHqfmRl6qwaMJiTL4nII9SPDK0X9ypqPqLgdpphNzIPTIm7G6/X7pAi+pEIw57kY0UjHH+P1jLJHiqNfRsonZfptdXU6VW8D6NY9Ur5cwFEXJj1xT7dvZfqEa6Irc2JqbFXz9N2aCjjZjj42u4LtI7vtXGgQ=="
-,"txtUserName":"962097617"
-,"txtPassword":"440729300"
-,"texttasvir":"7534"
-,"LoginButton0":"ورود دانشجو"
+"__EVENTTARGET": '' ,
+"__EVENTARGUMENT": '' ,
+"__VIEWSTATE": '' ,
+"__VIEWSTATEGENERATOR": '' ,
+"__EVENTVALIDATION": '' ,
+"txtUserName": user ,
+"txtPassword": pasw ,
+"texttasvir": captchaCode ,
+"LoginButton0":"ورود دانشجو"
 }
 
-cookies = dict({'ASP.NET_SessionId':'g0tcbsbn2q44gfgb2isxzgnw'})
+# --------------------Functions---------------------
+def ocr_space_file(filename, overlay=False, api_key='55c76e3c7d88957', language='eng'):
+    """ OCR.space API request with local file.
+        Python3.5 - not tested on 2.7
+    :param filename: Your file path & name.
+    :param overlay: Is OCR.space overlay required in your response.
+                    Defaults to False.
+    :param api_key: OCR.space API key.
+                    Defaults to 'helloworld'.
+    :param language: Language code to be used in OCR.
+                    List of available language codes can be found on https://ocr.space/OCRAPI
+                    Defaults to 'en'.
+    :return: Result in JSON format.
+    """
+
+    payload = {'isOverlayRequired': overlay,
+               'apikey': api_key,
+               'language': language,
+               }
+    with open(filename, 'rb') as f:
+        r = requests.post('https://api.ocr.space/parse/image',
+                          files={filename: f},
+                          data=payload,
+                          )
+    return r.content.decode()
+
+    """ OCR.space API request with remote file.
+        Python3.5 - not tested on 2.7
+    :param url: Image url.
+    :param overlay: Is OCR.space overlay required in your response.
+                    Defaults to False.
+    :param api_key: OCR.space API key.
+                    Defaults to 'helloworld'.
+    :param language: Language code to be used in OCR.
+                    List of available language codes can be found on https://ocr.space/OCRAPI
+                    Defaults to 'en'.
+    :return: Result in JSON format.
+    """
+
+    payload = {'url': url,
+               'isOverlayRequired': overlay,
+               'apikey': api_key,
+               'language': language,
+               }
+    r = requests.post('https://api.ocr.space/parse/image',
+                      data=payload,
+                      )
+    return r.content.decode()
+
+def GetValueById(object,element,id):
+	try:
+		return object.xpath('//{}[@id="{}"]/@value'.format(element,id))[0]
+	except:
+		return ''
+		
+def GetValueByName(object,name):
+	try:
+		return object.xpath('//{}[@name="{}"]/@value'.format(element,id))[0]
+	except:
+		return ''
+
+def InitializeValue():
+	# Get Value And Settion Temp
+	BasePage = requests.get(url+"/login.aspx")
+	sessionId = BasePage.cookies.get('ASP.NET_SessionId')
+	sessionIdHistory.append(sessionId)
+	tree = html.fromstring(BasePage.content)
+	payload['__VIEWSTATE'] = GetValueById(tree,'input','__VIEWSTATE')
+	payload['__VIEWSTATEGENERATOR'] = GetValueById(tree,'input','__VIEWSTATEGENERATOR')
+	payload['__EVENTTARGET'] = GetValueById(tree,'input','__EVENTTARGET')
+	payload['__EVENTARGUMENT'] = GetValueById(tree,'input','__EVENTARGUMENT')
+	payload['__EVENTVALIDATION'] = GetValueById(tree,'input','__EVENTVALIDATION')
+
+def GetNewSession():
+	InitializeValue()
+	GetNewCapcha()
+
+def GetNewCapcha():
+	try:
+		cookiesTemp = dict({'ASP.NET_SessionId':str(sessionIdHistory[-1])})
+		r = requests.get(url+"/captcha.aspx",cookies=cookiesTemp)
+		f=open('yourcaptcha.png','wb')
+		f.write(r.content)
+		f.close()
+		time.sleep(2)
+		test_file = ocr_space_file(filename='yourcaptcha.png' ,language='pol').replace('false','False')
+		captchaCode = eval(test_file)["ParsedResults"][0]["ParsedText"]
+		payload['texttasvir'] = str(int(captchaCode))
+	except:
+		GetNewCapcha()
+# ----------------------Main------------------------
+
+# Update Session
+GetNewSession()
+
+# Get Main Cookies
+cookies = dict({'ASP.NET_SessionId':str(sessionIdHistory[-1])})
 login = requests.post(url+"/login.aspx",data=payload,cookies=cookies)
+headers = login.headers
+# set cookies
+# cookies = login.cookies
 
 print(login.text)
-print(login.cookies)
+print(str(login.history[0].cookies.get('ASP.NET_SessionId')))
