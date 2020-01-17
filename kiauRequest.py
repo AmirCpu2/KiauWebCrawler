@@ -10,7 +10,8 @@ SubjectCorse = 'معماری'
 url = 'http://edu.kiau.ac.ir'
 user = '962097617'
 pasw = '440729300'
-sessionId = captchaCode = ''
+sessionId 	= ''
+captchaCode = []
 sessionIdHistory = []
 payload = {
 "__EVENTTARGET": '' ,
@@ -22,6 +23,18 @@ payload = {
 "txtPassword": pasw ,
 "texttasvir": captchaCode ,
 "LoginButton0":"ورود دانشجو"
+}
+payloadTable = {
+"ctl00$ScriptManager1": 'ctl00$UpdatePanel1|ctl00$ContentPlaceHolder1$grdCourseList' ,
+"__EVENTTARGET": 'ctl00$ContentPlaceHolder1$grdCourseList' ,
+"__EVENTARGUMENT": 'Page$1' ,
+"__LASTFOCUS": '',
+"__VIEWSTATE": '' ,
+"__VIEWSTATEGENERATOR": '' ,
+"__VIEWSTATEENCRYPTED": '',
+"__EVENTVALIDATION": '' ,
+"ctl00$ContentPlaceHolder1$a1":"RadioButton1",
+"__ASYNCPOST": True
 }
 
 # --------------------Functions---------------------
@@ -110,10 +123,20 @@ def GetNewCapcha():
 		f.close()
 		time.sleep(2)
 		test_file = ocr_space_file(filename='yourcaptcha.png' ,language='pol').replace('false','False')
-		captchaCode = eval(test_file)["ParsedResults"][0]["ParsedText"]
-		payload['texttasvir'] = str(int(captchaCode))
+		captchaCode.append( eval(test_file)["ParsedResults"][0]["ParsedText"] )
+		payload['texttasvir'] = str(int(captchaCode[-1]))
 	except:
 		GetNewCapcha()
+
+def SetPayloadList(object,page):
+	# Get Value And Settion Temp
+	tree = html.fromstring(object.content)
+	payloadTable['__VIEWSTATE'] = GetValueById(tree,'input','__VIEWSTATE')
+	payloadTable['__VIEWSTATEGENERATOR'] = GetValueById(tree,'input','__VIEWSTATEGENERATOR')
+	payloadTable['__EVENTTARGET'] = GetValueById(tree,'input','__EVENTTARGET')
+	payloadTable['__EVENTARGUMENT'] = 'Page${}'.format(page)
+	payloadTable['__EVENTVALIDATION'] = GetValueById(tree,'input','__EVENTVALIDATION')
+	
 # ----------------------Main------------------------
 
 # Update Session
@@ -128,3 +151,18 @@ headers = login.headers
 
 print(login.text)
 print(str(login.history[0].cookies.get('ASP.NET_SessionId')))
+
+# First Page List
+lists = requests.post(url+"/list_ara.aspx",data=payload,cookies=cookies)
+
+print(lists.text)
+
+SetPayloadList(lists,2)
+lists2 = requests.post(url+"/list_ara.aspx",data=payloadTable,cookies=cookies)
+
+print(lists2.text)
+
+SetPayloadList(lists2,3)
+lists3 = requests.post(url+"/list_ara.aspx",data=payloadTable,cookies=cookies)
+
+print(lists3.text)
