@@ -9,7 +9,7 @@ import re
 SubjectCorse = 'معماری'
 url = 'http://edu.kiau.ac.ir'
 user = '962097617'
-pasw = '440729300'
+pasw = '*********'
 sessionId 	= ''
 captchaCode = []
 sessionIdHistory = []
